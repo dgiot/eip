@@ -1,8 +1,8 @@
-# New Configuration Syntax for EMQ X v5.0
+# New Configuration Syntax for DGIOT v5.0
 
 ## Abstract
 
-Introduce a new configuration format in EMQX v5.0 release.
+Introduce a new configuration format in DGIOT v5.0 release.
 
 ## Motivation
 
