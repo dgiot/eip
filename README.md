@@ -1,4 +1,4 @@
-# EMQ X Improvement Proposals (EIP)
+# DGIOT Improvement Proposals (EIP)
 
 This repository contains the EMQ X Improvement Proposals (EIPs), to documentation
 the ideas, designs, or implement details of new features. All the EIPs are in
