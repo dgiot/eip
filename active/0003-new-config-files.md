@@ -122,15 +122,15 @@ That is, we prefer:
 
 ```
 force_shutdown_policy {
-  max_message_queue_len: 10000
-  max_heap_size: 64MB
+  max_message_queue_len = 10000
+  max_heap_size = 64MB
 }
 ```
 
 to
 
 ```
-force_shutdown_policy: 10000|64MB
+force_shutdown_policy = 10000|64MB
 ```
 
 The prior is not only more readable to users without reading the comments/documents, but also more
@@ -151,48 +151,48 @@ The first thing to be configured is the node name:
 
 ```
 node {
-  name: "emqx@127.0.0.1"
+  name = "emqx@127.0.0.1"
 }
 ```
 
 After that is the zones and listeners:
 
 ```
-zone.external {
-  auth.enable: true
-  acl.enable: true
-  acl.file: "{{ platform_etc_dir }}/acl.conf"
-  rate_limit.max_conn_rate: 1000
-  max_connections: 1024000
+zone.default {
+  rate_limit.max_conn_rate = 1000
+  max_connections = 1024000
 
-  listeners.tcp {
-    type: tcp
-    bind: "0.0.0.0:1883"
+  listeners.mqtt_tcp {
+    type = tcp
+    bind = "0.0.0.0:1883"
   }
 
-  listeners.ssl {
-    type: ssl
-    bind: "0.0.0.0:8883"
-    max_connections: 512000
-    ssl_options: {
+  listeners.mqtt_ssl {
+    type = ssl
+    bind = "0.0.0.0:8883"
+    max_connections = 512000
+    ssl.enable = true
+    ssl = {
+      versions: ["tlsv1.3", "tlsv1.2", "tlsv1.1", "tlsv1"]
       keyfile: "{{ platform_etc_dir }}/certs/key.pem"
       certfile: "{{ platform_etc_dir }}/certs/cert.pem"
       cacertfile: "{{ platform_etc_dir }}/certs/cacert.pem"
     }
   }
 
-  listeners.ws {
+  listeners.mqtt_ws {
     type: ws
     bind: "0.0.0.0:8083"
     mqtt_path: /mqtt
   }
 
-  listeners.wss {
+  listeners.mqtt_wss {
     type: wss
     bind: "0.0.0.0:8084"
     mqtt_path: /mqtt
     max_connections: 512000
-    ssl_options: {
+    ssl.enable: true
+    ssl: {
       keyfile: "{{ platform_etc_dir }}/certs/key.pem"
       certfile: "{{ platform_etc_dir }}/certs/cert.pem"
       cacertfile: "{{ platform_etc_dir }}/certs/cacert.pem"
@@ -211,8 +211,7 @@ zone.internal {
     bind: "127.0.0.1:11883"
     acceptors: 4
     max_connections: 1024000
-    active_n: 1000
-    tcp_options: ${refs.tcp_opts} {
+    tcp: ${refs.tcp_opts} {
       backlog: 512
     }
   }
@@ -224,28 +223,29 @@ Next comes the remaining part of the config file:
 
 ```
 broker {
-  sys_msg_interval: 1m
-  sys_heartbeat_interval: 30s
-  shared_subscription_strategy: random
+  sys_msg_interval = 1m
+  sys_heartbeat_interval = 30s
+  shared_subscription_strategy = random
 }
 
 log {
-  primary_level: warning
-  handlers: [{
-    type: file
-    level: warning
-    filename: "{{ platform_log_dir }}/emqx.log"
-  }]
+  file_handlers.emqx_log {
+    level = warning
+    file = "etc/emqx.log"
+    rotation.enable = true
+    rotation.count = 10
+    max_size = 10MB
+  }
 }
 
 cluster {
-  name: emqxcl
-  discovery_strategy: manual
+  name = emqxcl
+  discovery_strategy = manual
 }
 
 rpc {
-  mode: async
-  tcp_client_num: num_cpu_cores
+  mode = async
+  tcp_client_num = 1
 }
 ```
 

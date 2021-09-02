@@ -1,0 +1,85 @@
+@startuml
+
+actor Subscriber as sub
+participant Connection as subcon
+participant Broker as broker
+box "Mnesia replication\nin the cluster"
+  database Mnesia as mnesia
+end box
+box "Possibly other node"
+  participant Writer as writer
+  participant Connection as pubcon
+end box
+actor Publisher as pub
+
+== Clean start ==
+sub -> subcon : Connect\n(Session-Expiry > 0,\nClean-Start: 1)
+group ClientID lock aquired (in cluster)
+  subcon -> mnesia : Register (fresh) sessionID\nbased on clientID
+  subcon -> mnesia : Clean start\n(discard old sessionID)
+end
+
+== Subscribe ==
+sub -> subcon : Subscribe
+subcon -> broker : Subscribe
+group Cluster-global transaction
+  broker -> mnesia : Store topic filter in trie and\nsession table
+end group
+subcon -> sub : suback
+
+== Publish ==
+pub -> pubcon : publish
+pubcon -> mnesia : lookup topic in trie for\npersistent session
+pubcon -> mnesia : persist message
+pubcon -> writer : message
+writer -> mnesia : lookup sessionID
+writer -> mnesia : persist session\nmessage details
+rnote over pubcon
+  Still responsive
+endrnote
+writer -> subcon : message (RPC or direct send)
+subcon -> sub : message
+writer -> pubcon : ack
+pubcon -> pub : puback
+subcon -> mnesia : mark as delivered
+
+
+== Persistent resume (connection gone) ==
+sub -> subcon : Connect\n(Session-Expiry > 0,\nClean-Start: 0)
+group ClientID lock aquired (in cluster)
+  subcon -> mnesia : Register under the same sessionID as before
+  subcon -> mnesia : Get state
+end group
+group Recovery state machine
+  subcon -> mnesia : Get all pending messages
+  subcon -> sub : Pending messages
+  subcon -> mnesia : Mark as delivered
+  group Cluster-global transaction
+    subcon -> broker : Subscribe to topics (transaction)
+  end group
+  group For all writers in parallel
+    subcon -> writer : Sync marker
+    rnote over subcon
+      Drop all incoming messages from writer
+      These messages will eventually come
+      from the DB
+    end rnote
+    writer -> subcon : Sync marker
+    group Wait (poll) for marker in DB (in pending messages)
+      rnote over subcon
+        Buffer messages from writer
+      end rnote
+      subcon -> mnesia : Get pending messages from writer
+      subcon -> sub : pending messages
+      subcon -> mnesia : Mark as delivered
+    end group
+    writer -> mnesia : Sync marker
+    mnesia -> subcon : Sync marker
+    subcon -> sub : buffered messages from writer
+    subcon -> mnesia : Mark as delivered
+  end group
+  rnote over subcon
+    Normal operations
+  end rnote
+
+@enduml
